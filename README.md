@@ -16,12 +16,12 @@ Other required packages:
 ## Install
 Using the fellowing command to install packages:
 ```
-  pip install git+git://github.com/NMC-DAVE/dk_met_base.git
+  pip install git+git://github.com/NMC-DAVE/nmc_met_base.git
 ```
 
 or download the package and install:
 ```
-  git clone --recursive https://github.com/NMC-DAVE/dk_met_base.git
-  cd dk_met_base
+  git clone --recursive https://github.com/NMC-DAVE/nmc_met_base.git
+  cd nmc_met_base
   python setup.py install
 ```
