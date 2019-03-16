@@ -8,6 +8,8 @@ Geodesy calculation.
 """
 
 import numpy as np
+from numba import jit
+import nmc_met_base.constants as const
 
 
 def haversine_np(lon1, lat1, lon2, lat2):
@@ -69,3 +71,30 @@ def area_weighted_mean(lon, lat, data):
     norm = np.sum(np.cos((lat[1:] + lat[:-1]) / 2) * dlat)
 
     return np.sum(middle_points * dlat) / norm
+
+
+def stations_mean_distance(lon, lat):
+    """
+    Determine the mean separation distances of the observing stations.
+    https://www.atmos.illinois.edu/~jtrapp/Ex3.1.pdf
+
+    Arguments:
+        lon {numpy array} -- longitude array.
+        lat {numpy array} -- latitude array.
+    """
+
+    # check input vector
+    if len(lon) != len(lat):
+        raise Exception("lon length is not equal to lat length.")
+
+    # compute minimu distance
+    min_dist = np.full(len(lon), 0.0)
+    for i in range(len(lat)):
+        dx = const.Re * np.cos(lat) * (lon - lon[i]) * const.d2r
+        dy = const.Re * (lat - lat[i]) * const.d2r
+        d = np.sqrt(dx*dx + dy*dy)
+        min_dist[i] = np.min(d[d != 0])
+
+    # return mean distance
+    return np.mean(min_dist)
+
