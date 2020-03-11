@@ -5,13 +5,14 @@
 
 """
   Manipulating grid field and perform mathematical algorithm, like
-  partial differential, regridding and so on.
+  partial differential, vertical integrate, vertical cross section, smooth and so on.
 
 References:
 * https://bitbucket.org/tmiyachi/pymet
 """
 
 import numpy as np
+import xarray as xr
 from numba import jit
 from scipy import interpolate, ndimage
 from pyproj import Geod
@@ -735,6 +736,30 @@ def _grid_smooth_bes(x):
     return 2.0 * x * rint / (4.0 * np.arctan(1.0))
 
 
+def grid_gaussean_smooth(prod, sig):
+    """
+    Gaussean smooth (sig = sigma to smooth by)
+    
+    Args:
+        prod ([type]): 2D variable to be smoothed
+        sig ([type]): [description]
+    
+    Returns:
+        [type]: [description]
+    """
+    
+    #Check if variable is an xarray dataarray
+    try:
+        lats = prod.lat.values
+        lons = prod.lon.values
+        prod = ndimage.gaussian_filter(prod,sigma=sig,order=0)
+        prod = xr.DataArray(prod, coords=[lats, lons], dims=['lat', 'lon'])
+    except:
+        prod = ndimage.gaussian_filter(prod,sigma=sig,order=0)
+    
+    return prod
+
+
 def grid_smooth(field, radius=6, method='CRES', **kwargs):
     """
     Perform grid field smooth filter.
@@ -904,10 +929,49 @@ def _calcavg(x,xavg,lon2d,lat2d,nlon,nlat,rad,box,eqrm):
    
     return xavg
 
+
+def grid_area_average_degree(prod,deg,lats,lons):
+    """
+    Area averaging a lat/lon grid by a specified radius in degrees (not kilometers)
+    
+    Args:
+        prod ([type]): 2D variable to be area-averaged
+        deg ([type]): Degree radius to smooth over (e.g., 2 for 2 degrees)
+        lats ([type]): [description]
+        lons ([type]): [description]
+    
+    Returns:
+        [type]: [description]
+    """
+    
+    #Check if input product is an xarray dataarray
+    use_xarray = arr.check_xarray(prod)
+    
+    #Determine radius in gridpoint numbers
+    res = abs(lats[1] - lats[0])
+    
+    #Perform area-averaging
+    radius = int(float(deg)/res)
+    kernel = np.zeros((2*radius+1, 2*radius+1))
+    y1,x1 = np.ogrid[-radius:radius+1, -radius:radius+1]
+    mask = x1**2 + y1**2 <= radius**2
+    kernel[mask] = 1
+    prod = ndimage.filters.generic_filter(prod, np.average, footprint=kernel)
+    
+    #Convert back to xarray dataarray, if specified
+    if use_xarray == 1:
+        prod = xr.DataArray(prod, coords=[lats, lons], dims=['lat', 'lon'])
+    
+    #Return product
+    return prod
+
+
 @preprocess_xarray
-def area_average(var,rad,lon,lat):
+def grid_area_average(var,rad,lon,lat):
     """Performs horizontal area-averaging of a field in latitude/longitude format.
-    refer to https://github.com/tomerburg/metlib/blob/master/diagnostics/area_average.py
+    refer to
+    https://github.com/tomerburg/metlib/blob/master/diagnostics/area_average.py
+    https://github.com/tomerburg/metlib/blob/master/diagnostics/area_average_sample.ipynb
 
     Parameters
     ----------
@@ -934,6 +998,21 @@ def area_average(var,rad,lon,lat):
     authors.
     
     This function assumes that the last 2 dimensions of var are ordered as (....,lat,lon).
+
+    Examples
+      import xarray as xr
+      from metpy.units import units
+      
+      run_date = "20190106"
+      init = "1200"
+      url = f"http://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg/GFS_Global_0p25deg_{run_date}_{init}.grib2"
+      data = xr.open_dataset(url)
+      data_subset = data.isel(time2=0)
+      g = data_subset['Geopotential_height_isobaric'].sel(isobaric=pres_level)
+      lat = data_subset.lat.values
+      lon = data_subset.lon.values
+      radius = 500.0 * units('kilometers')
+      g_avg = area_average(g,radius,lon,lat)
     """
     
     #convert radius to kilometers

@@ -8,6 +8,7 @@
 """
 
 import numpy as np
+import xarray as xr
 
 
 def conform_dims(dims, r, ndim):
@@ -214,3 +215,103 @@ def matching(in_a, in_b, nan=True):
         a[np.argsort(b)] = np.sort(a)
     a.shape = in_a.shape
     return a
+
+
+def plug_array(small,small_lat,small_lon,large,large_lat,large_lon):
+    """
+    Plug a small array into a large array, assuming they have the same lat/lon
+    resolution.
+    
+    Args:
+        small ([type]): 2D array to be inserted into "large"
+        small_lat ([type]): 1D array of lats
+        small_lon ([type]): 1D array of lons
+        large ([type]): 2D array for "small" to be inserted into
+        large_lat ([type]): 1D array of lats
+        large_lon ([type]): 1D array of lons
+    """
+    
+    small_minlat = min(small_lat)
+    small_maxlat = max(small_lat)
+    small_minlon = min(small_lon)
+    small_maxlon = max(small_lon)
+    
+    if small_minlat in large_lat:
+        minlat = np.where(large_lat==small_minlat)[0][0]
+    else:
+        minlat = min(large_lat)
+    if small_maxlat in large_lat:
+        maxlat = np.where(large_lat==small_maxlat)[0][0]
+    else:
+        maxlat = max(large_lat)
+    if small_minlon in large_lon:
+        minlon = np.where(large_lon==small_minlon)[0][0]
+    else:
+        minlon = min(large_lon)
+    if small_maxlon in large_lon:
+        maxlon = np.where(large_lon==small_maxlon)[0][0]
+    else:
+        maxlon = max(large_lon)
+    
+    large[minlat:maxlat+1,minlon:maxlon+1] = small
+    
+    return large
+
+
+def filter_numeric_nans(data,thresh,repl_val,high_or_low) :
+    """
+    Filter numerical nans above or below a specified value''
+
+    Args:
+        data ([type]): array to filter '''
+        thresh ([type]):  threshold value to filter above or below '''
+        repl_val ([type]): replacement value'''
+        high_or_low ([type]): [description]
+    """
+    
+    dimens = np.shape(data)    
+    temp = np.reshape(data,np.prod(np.size(data)), 1)    
+    if high_or_low=='high':        	
+	inds = np.argwhere(temp>thresh) 	
+	temp[inds] = repl_val	  
+    elif high_or_low=='low':    
+        inds = np.argwhere(temp<thresh) 
+	temp[inds] = repl_val	  
+    elif high_or_low =='both':
+       	inds = np.argwhere(temp>thresh) 	
+	temp[inds] = repl_val
+	del inds
+       	inds = np.argwhere(temp<-thresh) 	
+	temp[inds] = -repl_val	                 
+    else:
+        inds = np.argwhere(temp>thresh) 
+	temp[inds] = repl_val	  
+    
+    # Turn vector back into array
+    data = np.reshape(temp,dimens,order='F').copy()
+    
+    return data    
+
+
+def find_nearest_index(array,val):
+    # Return the index of the value closest to the one passed in the array
+    return np.abs(array - val).argmin()
+
+
+def find_nearest_value(array,val):
+    # Return the value closest to the one passed in the array
+    return array[np.abs(array - val).argmin()]
+
+def check_xarray(arr):
+    """
+    Check if the passed array is an xarray dataaray by a simple try & except block.
+    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
+    
+    Returns:
+        Returns 0 if false, 1 if true.
+    """
+    try:
+        temp_val = arr.values
+        return 1
+    except:
+        return 0

@@ -4,11 +4,11 @@
 # Distributed under the terms of the GPL V3 License.
 
 """
-  Calculate grid derivative.
+  Calculating functions.
 """
 
 import numpy as np
-from nmc_met_base.arr import conform_dims
+from nmc_met_base import arr, constants
 
 
 def center_finite_diff_n(grid, dim=1, r=None, map_scale=None,
@@ -65,14 +65,14 @@ def center_finite_diff_n(grid, dim=1, r=None, map_scale=None,
         else:
             rr = r
         if np.ndim(rr) == 1:
-            rr = conform_dims(grid.shape, rr, [0])
+            rr = arr.conform_dims(grid.shape, rr, [0])
         else:
             rr = np.transpose(rr, p)
 
         if map_scale is not None:    # check map scale
             mps = map_scale
             if np.ndim(mps) == 1:
-                mps = conform_dims(grid.shape, mps, [0])
+                mps = arr.conform_dims(grid.shape, mps, [0])
             if np.ndim(mps) > 1:
                 mps = np.transpose(mps, p)
             rr *= mps
@@ -138,3 +138,85 @@ def center_finite_diff_n(grid, dim=1, r=None, map_scale=None,
 
     # return
     return dgrid
+
+
+def calculate_distance_2d(lat1,lat2,lon1,lon2):
+    # Calculates dx and dy for 2D arrays
+    #=ACOS(COS(RADIANS(90-Lat1)) *COS(RADIANS(90-Lat2)) +SIN(RADIANS(90-Lat1)) *SIN(RADIANS(90-Lat2)) *COS(RADIANS(Long1-Long2))) *6371
+    step1 = np.cos(np.radians(90.0-lat1))
+    step2 = np.cos(np.radians(90.0-lat2))
+    step3 = np.sin(np.radians(90.0-lat1))
+    step4 = np.sin(np.radians(90.0-lat2))
+    step5 = np.cos(np.radians(lon1-lon2))
+    dist = np.arccos(step1 * step2 + step3 * step4 * step5) * constants.Re
+    
+    return dist
+
+
+def compute_gradient(var,lats,lons):
+    """
+    Computes the horizontal gradient of a 2D scalar variable
+    
+    Returns:
+        Returns ddx, ddy (x and y components of gradient) in units of (unit)/m
+    """
+
+    #Pull in lat & lon resolution
+    latres = abs(lats[1]-lats[0])
+    lonres = abs(lons[1]-lons[0])    
+    
+    #compute the length scale for each gridpoint as a 2D array
+    lons2,lats2 = np.meshgrid(lons,lats)
+    dx = calculate_distance_2d(lats2,lats2,lons2-(lonres),lons2+(lonres))
+    dy = calculate_distance_2d(lats2-(latres),lats2+(latres),lons2,lons2)
+    
+    #Compute the gradient of the variable
+    dvardy,dvardx = np.gradient(var)
+    ddy = np.multiply(2,np.divide(dvardy,dy))
+    ddx = np.multiply(2,np.divide(dvardx,dx))
+
+    return ddx,ddy
+
+
+def spatial_anomaly(varin,slice_option):
+    """
+    Computes the spatial anomaly of varin
+
+    Input:    
+        varin:        3D array of variable to compute anomaly of
+        slice_option: 1 to compute anomaly of second dimension
+                      2 to compute anomaly of third dimension
+    Output:
+        varanom: Anomaly of varin
+        varanom_std = Standardized anomaly of varin
+
+    Steven Cavallo
+    March 2014
+    University of Oklahoma
+    """
+    iz, iy, ix = varin.shape
+        
+    mvar = np.ma.masked_array(varin,np.isnan(varin)) 
+    
+    tmp = np.zeros_like(varin).astype('f')  
+    tmp_std = np.zeros_like(varin).astype('f')  
+    
+    if slice_option == 1:
+        var_mean = np.mean(mvar,2)
+        var_std = np.std(mvar,2)
+        for kk in range(0,iz): 
+            for jj in range(0,iy):     
+                tmp[kk,jj,:] = varin[kk,jj,:] - var_mean[kk,jj]    
+                tmp_std[kk,jj,:] = var_std[kk,jj]
+    else:
+        var_mean = np.mean(mvar,1)
+        var_std = np.std(mvar,1)
+        for kk in range(0,iz): 
+            for ii in range(0,ix):     
+                tmp[kk,:,ii] = varin[kk,:,ii] - var_mean[kk,ii]    
+                tmp_std[kk,:,ii] = var_std[kk,ii]    
+            
+    varanom = tmp
+    varanom_std = tmp/tmp_std
+    
+    return varanom, varanom_std
