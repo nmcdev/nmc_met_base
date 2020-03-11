@@ -45,7 +45,8 @@ setup(
                       'pyproj>=1.9.5.1',
                       'python-dateutil',
                       'pandas>=0.20.0',
-                      'numba>=0.36']
+                      'numba>=0.36',
+                      'metpy>=0.12.0']
 )
 
 # development mode (DOS command):
