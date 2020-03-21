@@ -9,6 +9,7 @@
 
 import numpy as np
 import xarray as xr
+from typing import Union, Callable
 
 
 def conform_dims(dims, r, ndim):
@@ -302,6 +303,7 @@ def find_nearest_value(array,val):
     # Return the value closest to the one passed in the array
     return array[np.abs(array - val).argmin()]
 
+
 def check_xarray(arr):
     """
     Check if the passed array is an xarray dataaray by a simple try & except block.
@@ -315,3 +317,20 @@ def check_xarray(arr):
         return 1
     except:
         return 0
+
+
+def data_array_or_dataset_var(X: Union[xr.DataArray, xr.Dataset], var=None) -> xr.DataArray:
+    """
+    refer to https://github.com/bgroenks96/pyclimdex/blob/master/climdex/utils.py
+    
+    If X is a Dataset, selects variable 'var' from X and returns the corresponding
+    DataArray. If X is already a DataArray, returns X unchanged.
+    """
+    if isinstance(X, xr.Dataset):
+        assert var is not None, 'var name must be supplied for Dataset input'
+        return X[var]
+    elif isinstance(X, xr.DataArray):
+        return X
+    else:
+        raise Exception('unrecognized data type: {}'.format(type(X)))
+

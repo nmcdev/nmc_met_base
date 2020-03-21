@@ -734,3 +734,226 @@ def get_standard_atmosphere_3d(z):
                 p[i, j, k] = p0 * delta
                 t[i, j, k] = t0 * theta
     return p, t
+
+
+# -----------------------------
+# Calculate web-bulb temperature
+# refer to https://github.com/smartlixx/WetBulb/blob/master/WetBulb.py
+
+def QSat_2(T_k, p_t):
+    """
+    [es_mb,rs,de_mbdT,dlnes_mbdT,rsdT,foftk,fdt]=QSat_2(T_k, p_t)
+    DESCRIPTION:
+      Computes saturation mixing ratio and the change in saturation
+      mixing ratio with respect to temperature.  Uses Bolton eqn 10, 39.
+      Davies-Jones eqns 2.3,A.1-A.10
+      Reference:  Bolton: The computation of equivalent potential temperature. 
+  	      Monthly Weather Review (1980) vol. 108 (7) pp. 1046-1053
+ 	      Davies-Jones: An efficient and accurate method for computing the 
+          wet-bulb temperature along pseudoadiabats. Monthly Weather Review 
+          (2008) vol. 136 (7) pp. 2764-2785
+ 
+    INPUTS:
+      T_k        temperature (K)
+      p_t        surface atmospheric pressure (pa)
+      T_k and p_t should be arrays of identical dimensions.
+    OUTPUTS:
+      es_mb      vapor pressure (pa)
+      rs       	 humidity (kg/kg)
+      de_mbdT    d(es)/d(T)
+      dlnes_mbdT dln(es)/d(T)
+      rsdT     	 d(qs)/d(T)
+      foftk      Davies-Jones eqn 2.3
+      fdT     	 d(f)/d(T)
+    Ported from HumanIndexMod by Jonathan R Buzan 08/08/13
+    MATLAB port by Robert Kopp
+    Last updated by Robert Kopp, robert-dot-kopp-at-rutgers-dot-edu, Wed Sep 02 22:22:25 EDT 2015
+    """
+
+    lambd_a = 3.504    	# Inverse of Heat Capacity
+    alpha = 17.67 	    # Constant to calculate vapour pressure
+    beta = 243.5		# Constant to calculate vapour pressure
+    epsilon = 0.6220	# Conversion between pressure/mixing ratio
+    es_C = 6.112		# Vapour Pressure at Freezing STD (mb)
+    vkp = 0.2854		# Heat Capacity
+    y0 = 3036		    # constant
+    y1 = 1.78		    # constant
+    y2 = 0.448		    # constant
+    Cf = 273.15         # Freezing Temp (K)
+    refpres = 1000	    # Reference Pressure (mb)
+
+# Constants used to calculate es(T)
+# Clausius-Clapeyron
+    p_tmb = p_t*0.01
+    tcfbdiff = T_k - Cf + beta
+    es_mb = es_C * np.exp(alpha*(T_k - Cf)/(tcfbdiff))
+    dlnes_mbdT = alpha * beta/((tcfbdiff)*(tcfbdiff))
+    pminuse = p_tmb - es_mb
+    de_mbdT = es_mb * dlnes_mbdT
+    d2e_mbdT2 = dlnes_mbdT * (de_mbdT - 2*es_mb/(tcfbdiff))
+
+# Constants used to calculate rs(T)
+    ndimpress = (p_tmb/refpres)**vkp
+    p0ndplam = refpres * ndimpress**lambd_a
+    rs = epsilon * es_mb/(p0ndplam - es_mb + np.spacing(1)) #eps)
+    prersdt = epsilon * p_tmb/((pminuse)*(pminuse))
+    rsdT = prersdt * de_mbdT
+    d2rsdT2 = prersdt * (d2e_mbdT2 -de_mbdT*de_mbdT*(2/(pminuse)))
+
+# Constants used to calculate g(T)
+    rsy2rs2 = rs + y2*rs*rs
+    oty2rs = 1 + 2.0*y2*rs
+    y0tky1 = y0/T_k - y1
+    goftk = y0tky1 * (rs + y2 * rs * rs)
+    gdT = - y0 * (rsy2rs2)/(T_k*T_k) + (y0tky1)*(oty2rs)*rsdT
+    d2gdT2 = 2.0*y0*rsy2rs2/(T_k*T_k*T_k) - 2.0*y0*rsy2rs2*(oty2rs)*rsdT + \
+        y0tky1*2.0*y2*rsdT*rsdT + y0tky1*oty2rs*d2rsdT2
+
+# Calculations for used to calculate f(T,ndimpress)
+    foftk = ((Cf/T_k)**lambd_a)*(np.abs(1 - es_mb/p0ndplam))**(vkp*lambd_a)* \
+        np.exp(-lambd_a*goftk)
+    fdT = -lambd_a*(1.0/T_k + vkp*de_mbdT/pminuse + gdT)
+    d2fdT2 = lambd_a*(1.0/(T_k*T_k) - vkp*de_mbdT*de_mbdT/(pminuse*pminuse) - \
+        vkp*d2e_mbdT2/pminuse - d2gdT2)
+
+# avoid bad numbers
+    rs[rs>1]=np.nan
+    rs[rs<0]=np.nan
+
+    return es_mb,rs,de_mbdT,dlnes_mbdT,rsdT,foftk,fdT
+
+
+def WetBulb(TemperatureC, Pressure, Humidity, HumidityMode=0):
+    """ 
+    INPUTS:
+      TemperatureC	   2-m air temperature (degrees Celsius)
+      Pressure	       Atmospheric Pressure (Pa)
+      Humidity         Humidity -- meaning depends on HumidityMode
+      HumidityMode
+        0 (Default): Humidity is specific humidity (kg/kg)
+        1: Humidity is relative humidity (#, max = 100)
+      TemperatureC, Pressure, and Humidity should either be scalars or arrays of
+        identical dimension.
+    OUTPUTS:
+      Twb	    wet bulb temperature (C)
+      Teq	    Equivalent Temperature (K)
+      epott 	Equivalent Potential Temperature (K)
+    """
+    SHR_CONST_TKFRZ = 273.15
+    TemperatureK = TemperatureC + SHR_CONST_TKFRZ
+
+    constA = 2675 	 # Constant used for extreme cold temparatures (K)
+    grms = 1000 	 # Gram per Kilogram (g/kg)
+    p0 = 1000   	 # surface pressure (mb)
+
+    kappad = 0.2854	 # Heat Capacity
+
+    C = SHR_CONST_TKFRZ		# Freezing Temperature
+    pmb = Pressure*0.01   	# pa to mb
+    T1 = TemperatureK		# Use holder for T
+
+    es_mb,rs = QSat_2(TemperatureK, Pressure)[0:2] # first two returned values
+
+    if HumidityMode==0:
+        qin = Humidity                   # specific humidity
+        relhum = 100.0 * qin/rs          # relative humidity (%)
+        vapemb = es_mb * relhum * 0.01   # vapor pressure (mb) 
+    elif HumidityMode==1:
+        relhum = Humidity                # relative humidity (%)
+        qin = rs * relhum * 0.01         # specific humidity
+        vapemb = es_mb * relhum * 0.01   # vapor pressure (mb) 
+    #end
+
+    mixr = qin * grms          # change specific humidity to mixing ratio (g/kg)
+   
+    #-----------------------------------------------------------------------
+
+    # Calculate Equivalent Pot. Temp (pmb, T, mixing ratio (g/kg), pott, epott)	
+    # Calculate Parameters for Wet Bulb Temp (epott, pmb)
+    pnd = (pmb/p0)**(kappad)
+    D = 1.0/(0.1859*pmb/p0 + 0.6512)
+    k1 = -38.5*pnd*pnd + 137.81*pnd - 53.737
+    k2 = -4.392*pnd*pnd + 56.831*pnd - 0.384
+
+    # Calculate lifting condensation level.  first eqn 
+    # uses vapor pressure (mb)
+    # 2nd eqn uses relative humidity.  
+    # first equation: Bolton 1980 Eqn 21.
+    #   tl = (2840/(3.5*log(T1) - log(vapemb) - 4.805)) + 55;
+    # second equation: Bolton 1980 Eqn 22.  relhum = relative humidity
+    tl = (1.0/((1.0/((T1 - 55))) - (np.log(relhum/100.0)/2840.0))) + 55.0
+
+    # Theta_DL: Bolton 1980 Eqn 24.
+    theta_dl = T1*((p0/(pmb-vapemb))**kappad) * ((T1/tl)**(mixr*0.00028))
+    # EPT: Bolton 1980 Eqn 39.  
+    epott = theta_dl * np.exp(((3.036/tl)-0.00178)*mixr*(1 + 0.000448*mixr))
+    Teq = epott*pnd			 # Equivalent Temperature at pressure
+    X = (C/Teq)**3.504
+
+    # Calculates the regime requirements of wet bulb equations.
+    invalid = (Teq > 600) + (Teq < 200)
+    hot = (Teq > 355.15)
+    cold = ((X>=1) * (X<=D))
+    X[invalid==1] = np.nan 
+    Teq[invalid==1] = np.nan
+
+    # Calculate Wet Bulb Temperature, initial guess
+    # Extremely cold regime if X.gt.D then need to 
+    # calculate dlnesTeqdTeq 
+    es_mb_teq,rs_teq,de_mbdTeq, dlnes_mbdTeq, rsdTeq, foftk_teq, fdTeq = QSat_2(Teq, Pressure)
+    wb_temp = Teq - C - ((constA*rs_teq)/(1 + (constA*rs_teq*dlnes_mbdTeq)))
+    sub=np.where(X<=D)
+    wb_temp[sub] = (k1[sub] - 1.21 * cold[sub] - 1.45 * hot[sub] - (k2[sub] - 1.21 * cold[sub]) * X[sub] + (0.58 / X[sub]) * hot[sub])
+    wb_temp[invalid==1]=np.nan
+
+    # Newton-Raphson Method
+
+    maxiter = 3
+    iter = 0
+    delta = 1e6*np.ones_like(wb_temp)
+
+    while (np.max(delta)>0.01) and (iter<=maxiter):
+        es_mb_wb_temp,rs_wb_temp,de_mbdwb_temp, dlnes_mbdwb_temp, rsdwb_temp, foftk_wb_temp, fdwb_temp = QSat_2(wb_temp + C, Pressure)
+        delta = (foftk_wb_temp - X)/fdwb_temp  #float((foftk_wb_temp - X)/fdwb_temp)
+        delta = np.where(delta<10., delta, 10.) #min(10,delta)
+        delta = np.where(delta>-10., delta, -10.) #max(-10,delta)
+        wb_temp = wb_temp - delta
+        wb_temp[invalid==1] = np.nan
+        Twb = wb_temp
+        iter = iter+1
+    #end
+    
+    # ! 04-06-16: Adding iteration constraint.  Commenting out original code.
+    # but in the MATLAB code, for sake of speed, we only do this for the values
+    # that didn't converge
+
+    if 1: #ConvergenceMode:
+        
+        convergence = 0.00001
+        maxiter = 20000
+
+        es_mb_wb_temp,rs_wb_temp,de_mbdwb_temp, dlnes_mbdwb_temp, rsdwb_temp, foftk_wb_temp, fdwb_temp = QSat_2(wb_temp + C, Pressure)
+        delta = (foftk_wb_temp - X)/fdwb_temp  #float((foftk_wb_temp - X)/fdwb_temp)
+        subdo = np.where(np.abs(delta)>convergence) #find(abs(delta)>convergence)
+
+        iter = 0
+        while (len(subdo)>0) and (iter<=maxiter):
+            iter = iter + 1
+            wb_temp[subdo] = wb_temp[subdo] - 0.1*delta[subdo]
+            es_mb_wb_temp,rs_wb_temp,de_mbdwb_temp, dlnes_mbdwb_temp, rsdwb_temp, foftk_wb_temp, fdwb_temp = QSat_2(wb_temp[subdo]+C, Pressure[subdo])
+            delta = 0 * wb_temp
+            delta[subdo] = (foftk_wb_temp - X[subdo])/fdwb_temp #float((foftk_wb_temp - X[subdo])/fdwb_temp)
+            subdo = np.where(np.abs(delta)>convergence) #find(abs(delta)>convergence);
+
+        Twb = wb_temp
+        if any(map(len,subdo)): #len(subdo)>0:
+            print(len(subdo))
+            Twb[subdo] = TemperatureK[subdo]-C
+            #print(subdo)
+            for www in subdo[0]:
+            #    print(www)
+                print('WARNING-Wet_Bulb failed to converge. Setting to T: WB, P, T, RH, Delta: %0.2f, %0.2f, %0.1f, %0.2g, %0.1f'%(Twb[www], Pressure[www], \
+                    TemperatureK[www], relhum[www], delta[www]))
+    
+    #Twb=float(Twb)
+    return Twb,Teq,epott

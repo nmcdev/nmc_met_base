@@ -357,7 +357,7 @@ def v_zonal_integration(V,DX):
 	## Zonal integration	
 	vi = np.zeros(v.shape)
 
-	for j in xrange(2,vi.shape[1]+1):
+	for j in range(2,vi.shape[1]+1):
 		vi[:,-j] = np.trapz(v[:,-j:], dx=DX[:,(-j+1):])
 
 	return vi
