@@ -47,7 +47,8 @@ setup(
                       'pandas>=0.20.0',
                       'xarray>=0.15.0',
                       'numba>=0.36',
-                      'metpy>=0.12.0']
+                      'metpy>=0.12.0'],
+    zip_safe = False
 )
 
 # development mode (DOS command):
