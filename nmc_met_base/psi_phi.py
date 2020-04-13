@@ -8,101 +8,13 @@ Deal vectorial fields, like calculating stream function, velocity potential.
 
 Primary functions of the Li et al. (2006) method
 Li et al. (2006) minimization method
+
+refer to https://raw.githubusercontent.com/tiagobilo/vector_fields/2afc4311194340e0427829e2eb617d4036d29d2d/psi_phi.py
 """
 
 import numpy as np
 import scipy.optimize as optimize
 import time
-
-
-def psi_lietal(IPSI,IPHI,DX,DY,U,V,ZBC='closed',MBC='closed',ALPHA=1.0e-14):
-
-	"""
-	Compute streamfunction implementing 
-	Li et al. (2006) method. Its advantages consist in
-	extract the non-divergent and non-rotational part 
-	of the flow without explicitly applying boundary 
-	conditions and computational efficiency.
-
-	This method also minimizes the difference between the
-	reconstructed and original velocity fields. Therefore 
-	it is ideal for large and non-regular domains with complex 
-	coastlines and islands.
-
-	Streamfunction and velocity potential are staggered with the 
-	velocity components.
-
-	Input:
-			IPSI [M,N]		: Streamfunction initial guess
-			IPHI [M,N]      : Velocity potential initial guess
-			DX 	 [M,N]      : Zonal distance (i.e., resolution) 
-			DY   [M,N]      : Meridional distance (i.e., resolution)
-			U    [M-1,N-1]  : Original zonal velocity field defined between PSI and PHI grid points 
-			V    [M-1,N-1]  : Original meridional velocity field defined between PSI and PHI grid points
-
-	Optional Input:
-			ZBC				: Zonal Boundary Condition for domain edge (closed or periodic)
-			MBC				: Meridional Boundary Condition for domain edge (closed or periodic)
-			ALPHA 			: Regularization parameter
-
-	Output:
-			psi [M,N]		: Streamfunction
-			phi [M,N]		: Velocity Potential
-
-
-	Obs1: PSI and PHI over land and boundaries have to be 0.0
-	for better performance. However U and V can be masked with 
-	NaNs 
-
-	Obs2: Definitions
-
-	U = dPsi/dy + dPhi/dx
-	V = -dPsi/dx + dPhi/dy 
-
-	Obs3: BCs are applied only to the Jacobian of the
-	minimization function and are referred to the edges
-	of the rectangular domain.  
-
-	"""
-
-	## Reshape/Resize variables ("Vectorization")
-	# Velocity
-	M,N = U.shape
-
-	y = np.ones(2*M*N)*np.nan
-
-	# Velocity y = (U11,U12,...,U31,U32,....,V11,V12,....)
-	y[:y.shape[0]/2] = U.reshape(M*N)
-	y[y.shape[0]/2:] = V.reshape(M*N)
-
-	idata = ~np.isnan(y.copy())
-	y = y[idata]
-
-
-	# Stream function and velocity potential
-	M1,N1 = IPSI.shape
-
-	x = np.ones(2*M1*N1)*np.nan
-
-	# PSI and PHI vector: x = (PSI11,PSI12,...,PSI31,PSI32,...,PHI11,PHI12,...)
-	x[:x.shape[0]/2] = IPSI.reshape(M1*N1)
-	x[x.shape[0]/2:] = IPHI.reshape(M1*N1)		
-
-
-	print('       Optimization process')
-	t0 = time.clock()
-	pq = optimize.minimize(ja,x,method='L-BFGS-B',jac=grad_ja,
-		args=(y,DX,DY,M1,N1,idata,ZBC,MBC,ALPHA),options={'gtol': 1e-16})
-
-	t1 = time.clock()
-
-	print('           Time for convergence: %1.2f min'%((t1-t0)/60.0))
-	print('           F(x): %1.2f'%(pq.fun))		
-
-	psi = pq.x[:x.shape[0]/2].reshape((M1,N1))
-	phi = pq.x[x.shape[0]/2:].reshape((M1,N1))
-
-	return psi,phi
 
 
 # Function to be minimized: Objective functional + Tikhonov's regularization term 
@@ -182,8 +94,8 @@ def derive_ax(x,DX,DY,M1,N1,IDATA):
 
 	# Organize the variables
 	ax = np.ones(2*(M1-1)*(N1-1))*np.nan
-	ax[:ax.shape[0]/2] = u.reshape((M1-1)*(N1-1))
-	ax[ax.shape[0]/2:] = v.reshape((M1-1)*(N1-1))
+	ax[:int(ax.shape[0]/2)] = u.reshape((M1-1)*(N1-1))
+	ax[int(ax.shape[0]/2):] = v.reshape((M1-1)*(N1-1))
 
 	# Remove NaNs
 	ax = ax[IDATA]
@@ -203,11 +115,10 @@ def derive_adj(e,DX,DY,M1,N1,ZBC,MBC,IDATA):
 	er = np.zeros(2*(M1-1)*(N1-1))
 	er[IDATA] = e.copy()
 
-
 	## Re-organize variables
 	# Velocity
-	u = er[:er.shape[0]/2]
-	v = er[er.shape[0]/2:]	
+	u = er[:int(er.shape[0]/2)]
+	v = er[int(er.shape[0]/2):]	
 	
 	u = u.reshape((M1-1,N1-1))
 	v = v.reshape((M1-1,N1-1))
@@ -454,3 +365,99 @@ def dy_from_dlat(lat):
 	dy = dy*111194.928
 
 	return dy
+
+
+def psi_lietal(IPSI,IPHI,DX,DY,U,V,ZBC='closed',MBC='closed',ALPHA=1.0e-14):
+
+	"""
+	Compute streamfunction implementing Li et al. (2006) method. Its advantages consist in
+	extract the non-divergent and non-rotational part of the flow without explicitly applying boundary 
+	conditions and computational efficiency.
+
+	This method also minimizes the difference between the reconstructed and original velocity fields. Therefore 
+	it is ideal for large and non-regular domains with complex coastlines and islands.
+
+	Streamfunction and velocity potential are staggered with the velocity components.
+
+	Input:
+			IPSI [M,N]		: Streamfunction initial guess
+			IPHI [M,N]      : Velocity potential initial guess
+			DX 	 [M,N]      : Zonal distance (i.e., resolution) 
+			DY   [M,N]      : Meridional distance (i.e., resolution)
+			U    [M-1,N-1]  : Original zonal velocity field defined between PSI and PHI grid points 
+			V    [M-1,N-1]  : Original meridional velocity field defined between PSI and PHI grid points
+
+	Optional Input:
+			ZBC				: Zonal Boundary Condition for domain edge (closed or periodic)
+			MBC				: Meridional Boundary Condition for domain edge (closed or periodic)
+			ALPHA 			: Regularization parameter
+
+	Output:
+			psi [M,N]		: Streamfunction
+			phi [M,N]		: Velocity Potential
+
+
+	Obs1: PSI and PHI over land and boundaries have to be 0.0
+	for better performance. However U and V can be masked with 
+	NaNs 
+
+	Obs2: Definitions
+
+	U = dPsi/dy + dPhi/dx
+	V = -dPsi/dx + dPhi/dy 
+
+	Obs3: BCs are applied only to the Jacobian of the
+	minimization function and are referred to the edges
+	of the rectangular domain. 
+
+	:Examples:
+		M = 64
+		N = 64
+		IPSI = np.zeros((M, N))
+		IPHI = np.zeros((M, N))
+		DX = np.zeros((M, N)) + 2.5
+		DY = np.zeros((M, N)) + 2.5
+		U = np.random.rand(M-1, N-1)
+		V = np.random.rand(M-1, N-1)
+		psi,phi = psi_lietal(IPSI,IPHI,DX,DY,U,V)
+	"""
+
+	## Reshape/Resize variables ("Vectorization")
+	# Velocity
+	M,N = U.shape
+
+	y = np.ones(2*M*N)*np.nan
+
+	# Velocity y = (U11,U12,...,U31,U32,....,V11,V12,....)
+	y[:int(y.shape[0]/2)] = U.reshape(M*N)
+	y[int(y.shape[0]/2):] = V.reshape(M*N)
+
+	idata = ~np.isnan(y.copy())
+	y = y[idata]
+
+
+	# Stream function and velocity potential
+	M1,N1 = IPSI.shape
+
+	x = np.ones(2*M1*N1)*np.nan
+
+	# PSI and PHI vector: x = (PSI11,PSI12,...,PSI31,PSI32,...,PHI11,PHI12,...)
+	x[:int(x.shape[0]/2)] = IPSI.reshape(M1*N1)
+	x[int(x.shape[0]/2):] = IPHI.reshape(M1*N1)		
+
+
+	print('       Optimization process')
+	t0 = time.clock()
+	pq = optimize.minimize(ja,x,method='L-BFGS-B',jac=grad_ja,
+		args=(y,DX,DY,M1,N1,idata,ZBC,MBC,ALPHA),options={'gtol': 1e-16})
+
+	t1 = time.clock()
+
+	print('           Time for convergence: %1.2f min'%((t1-t0)/60.0))
+	print('           F(x): %1.2f'%(pq.fun))		
+
+	psi = pq.x[:int(x.shape[0]/2)].reshape((M1,N1))
+	phi = pq.x[int(x.shape[0]/2):].reshape((M1,N1))
+
+	return psi,phi
+
