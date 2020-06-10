@@ -19,6 +19,7 @@ from pyproj import Geod
 from metpy.units import units
 import metpy.calc as calc
 from metpy.xarray import preprocess_xarray
+import pyinterp.backends.xarray as pbx
 from nmc_met_base import constants, arr
 
 NA = np.newaxis
@@ -1171,6 +1172,57 @@ def vertical_cross(in_field, lon, lat, line_points, npts=100):
 
     # return vertical cross section
     return zdata, points
+
+
+def interp_3D_to_surface(data, lon, lat, lev, surf_lev):
+    """
+    Inpterpolate 3D grid to 2D surface, using pyinterp.
+    本程序先将data数据转化为xarray, 再调用pyinterp的xarray接口.
+    如果直接调用pyinterp, 一定要注意坐标轴的顺序
+    https://pangeo-pyinterp.readthedocs.io/en/latest/examples.html#id2
+    # The shape of the bivariate values must be (len(x_axis), len(y_axis), len(z_axis))
+
+    x_axis = pyinterp.Axis(lon)
+    y_axis = pyinterp.Axis(lat)
+    z_axis = pyinterp.Axis(lev)
+    # data must be [nlon, nlat, nlev]
+    dataGrid = pyinterp.Grid3D(x_axis, y_axis, z_axis, data, increasing_axes='inplace')
+
+    mx, my = np.meshgrid(lon, lat, indexing='ij')
+    # surf_lev must be [nlon, nlat]
+    mz = surf_lev.flatten()
+    outData = pyinterp.bicubic(dataGrid, mx.flatten(), my.flatten(), mz)
+    outData.shape = (lon.size, lat.size)
+
+    Args:
+        data (numpy array): 3D grid, [nlev, nlat, nlon]
+        lon (numpy vector): longitude coordinates, 1D vector, [nlon]
+        lat (numpy vector): latitude coordinates. 1D vector, [nlat]
+        lev (numpy vector): level coordinates. 1D vector, [nlev]
+        surf_lev (numpy array): surface level 2D grid, [nlat, nlon]
+
+    Returns:
+        numpy array: data values on the surface, if outside, np.nan return.
+    """
+
+    # create xarray data
+    # refer to https://pangeo-pyinterp.readthedocs.io/en/latest/generated/pyinterp.backends.xarray.Grid3D.html#pyinterp.backends.xarray.Grid3D
+    lon_coord = ('lon', lon, {'long_name':'longitude', 'units':'degrees_east'})
+    lat_coord = ('lat', lat, {'long_name':'latitude', 'units':'degrees_north'})
+    lev_coord = ('lev', lev, {'long_name':'level'})
+    inData = xr.DataArray(data, coords={'lev':lev_coord, 'lat':lat_coord, 'lon':lon_coord}, dims=['lev', 'lat', 'lon'])
+
+    # construct grid position
+    my, mx = np.meshgrid(lat, lon, indexing='ij')
+
+    # construct interpolate
+    interpolator = pbx.RegularGridInterpolator(inData, increasing_axes=True)
+
+    # perform interpolation
+    outData = interpolator(dict(lev=surf_lev.flatten(), lat=my.flatten(), lon=mx.flatten()), method='bicubic')
+    outData.shape = (lat.size, lon.size)
+
+    return outData
 
 
 def interpolate1d(x, z, points, mode='linear', bounds_error=False):

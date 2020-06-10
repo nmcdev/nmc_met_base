@@ -259,7 +259,7 @@ def plug_array(small,small_lat,small_lon,large,large_lat,large_lon):
     return large
 
 
-def filter_numeric_nans(data,thresh,repl_val,high_or_low) :
+def filter_numeric_nans(data,thresh, repl_val, high_or_low) :
     """
     Filter numerical nans above or below a specified value''
 
@@ -273,20 +273,20 @@ def filter_numeric_nans(data,thresh,repl_val,high_or_low) :
     dimens = np.shape(data)    
     temp = np.reshape(data,np.prod(np.size(data)), 1)    
     if high_or_low=='high':        	
-	inds = np.argwhere(temp>thresh) 	
-	temp[inds] = repl_val	  
+	    inds = np.argwhere(temp > thresh) 	
+	    temp[inds] = repl_val	  
     elif high_or_low=='low':    
-        inds = np.argwhere(temp<thresh) 
-	temp[inds] = repl_val	  
+        inds = np.argwhere(temp < thresh) 
+        temp[inds] = repl_val	  
     elif high_or_low =='both':
-       	inds = np.argwhere(temp>thresh) 	
-	temp[inds] = repl_val
-	del inds
-       	inds = np.argwhere(temp<-thresh) 	
-	temp[inds] = -repl_val	                 
+       	inds = np.argwhere(temp > thresh) 	
+        temp[inds] = repl_val
+        del inds
+        inds = np.argwhere(temp < -thresh) 	
+        temp[inds] = -repl_val	                 
     else:
-        inds = np.argwhere(temp>thresh) 
-	temp[inds] = repl_val	  
+        inds = np.argwhere(temp > thresh) 
+        temp[inds] = repl_val	  
     
     # Turn vector back into array
     data = np.reshape(temp,dimens,order='F').copy()
