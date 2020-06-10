@@ -14,17 +14,18 @@ import scipy.interpolate
 import scipy.ndimage
 
 
-def hinterp(data, x, y, xout, yout, grid=True):
+def hinterp(data, x, y, xout, yout, grid=True, **kargs):
     """
     Regridding multiple dimensions data. Interpolation occurs
     in the 2 rightest most indices of grid data.
 
     :param grid: input grid, multiple array.
-    :param x: input grid x coordinates, 1D vector.
-    :param y: input grid y coordinates, 1D vector.
+    :param x: input grid x coordinates, 1D vector, must be increase order.
+    :param y: input grid y coordinates, 1D vector, must be increase order.
     :param xout: output points x coordinates, 1D vector.
     :param yout: output points y coordinates, 1D vector.
     :param grid: output points is a grid.
+    :param kargs: keyword arguments for np.interp.
     :return: interpolated grid.
 
     :Example:
@@ -45,8 +46,8 @@ def hinterp(data, x, y, xout, yout, grid=True):
         yyout = yout
 
     # interpolated location
-    xx = np.interp(xxout, x, np.arange(len(x), dtype=np.float))
-    yy = np.interp(yyout, y, np.arange(len(y), dtype=np.float))
+    xx = np.interp(xxout, x, np.arange(len(x), dtype=np.float), **kargs)
+    yy = np.interp(yyout, y, np.arange(len(y), dtype=np.float), **kargs)
 
     # perform bilinear interpolation
     xx0 = np.floor(xx).astype(int)
