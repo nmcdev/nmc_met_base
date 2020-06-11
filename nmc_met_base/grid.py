@@ -854,6 +854,7 @@ def grid_smooth(field, radius=6, method='CRES', **kwargs):
         return field
 
     # return smoothed field
+    kernel /= np.sum(kernel)
     return ndimage.filters.convolve(field, kernel, **kwargs)
 
 
