@@ -47,6 +47,7 @@ setup(
                       'pandas>=0.20.0',
                       'xarray>=0.15.0',
                       'numba>=0.36',
+                      'pyinterp>=0.3.0'
                       'metpy>=0.12.0'],
     zip_safe = False
 )
