@@ -40,15 +40,8 @@ setup(
     include_package_data=True,
     exclude_package_data={'': ['.gitignore']},
 
-    install_requires=['numpy>=1.12.1',
-                      'scipy>=0.19.0',
-                      'pyproj>=1.9.5.1',
-                      'python-dateutil',
-                      'pandas>=0.20.0',
-                      'xarray>=0.15.0',
-                      'numba>=0.36',
-                      'pyinterp>=0.3.0'
-                      'metpy>=0.12.0'],
+    install_requires=['numpy', 'scipy', 'pyproj', 'python-dateutil', 'pandas',
+                      'xarray', 'numba', 'metpy'],
     zip_safe = False
 )
 

@@ -114,7 +114,7 @@ def relvort(u,v,lats,lons):
     vort = np.subtract(dvdx,dudy)
     
     #Account for southern hemisphere
-    tlons,tlats = np.meshgrid(lons,lats)
+    tlons, tlats = np.meshgrid(lons,lats)
     vort[tlats<0] = vort[tlats<0] * -1
     
     #Convert back to xarray dataset, if initially passed as one
@@ -886,51 +886,16 @@ def eliassen_palm_flux_sphere(geop,theta,lats,lons,levs,normalize_option):
     
     if normalize_option == 1:        
         for kk in range(0,iz):  
-	    Fx[kk,:,:] =  Fx[kk,:,:] / np.nanmax(np.abs(Fx[kk,:,:]))
-	    Fy[kk,:,:] =  Fy[kk,:,:] / np.nanmax(np.abs(Fy[kk,:,:]))
-	    Fz[kk,:,:] =  Fz[kk,:,:] / np.nanmax(np.abs(Fz[kk,:,:]))
+            Fx[kk,:,:] =  Fx[kk,:,:] / np.nanmax(np.abs(Fx[kk,:,:]))
+            Fy[kk,:,:] =  Fy[kk,:,:] / np.nanmax(np.abs(Fy[kk,:,:]))
+            Fz[kk,:,:] =  Fz[kk,:,:] / np.nanmax(np.abs(Fz[kk,:,:]))
     if normalize_option == 2:        
         for kk in range(0,iz):  
-	    Fx[kk,:,:] =  Fx[kk,:,:] / np.nanstd(Fx[kk,:,:])
-	    Fy[kk,:,:] =  Fy[kk,:,:] / np.nanstd(Fy[kk,:,:])
-	    Fz[kk,:,:] =  Fz[kk,:,:] / np.nanstd(Fz[kk,:,:])    
+            Fx[kk,:,:] =  Fx[kk,:,:] / np.nanstd(Fx[kk,:,:])
+            Fy[kk,:,:] =  Fy[kk,:,:] / np.nanstd(Fy[kk,:,:])
+            Fz[kk,:,:] =  Fz[kk,:,:] / np.nanstd(Fz[kk,:,:])    
 
     return Fx, Fy, Fz, divF
-
-
-def epv_sphere(theta,pres,u,v,lats,lons):
-    """
-    Computes the Ertel Potential Vorticity (PV) on a latitude/longitude grid
-    https://github.com/scavallo/python_scripts/blob/master/utils/weather_modules.py
-   
-    Input:    
-       theta:       3D potential temperature array on isobaric levels
-       pres:        3D pressure array
-       u,v:         3D u and v components of the horizontal wind on isobaric levels
-       lats,lons:   1D latitude and longitude vectors
-    
-    Output:  
-      epv: Ertel PV in potential vorticity units (PVU)
-   
-    Steven Cavallo
-    October 2012
-    University of Oklahoma
-    """
-    iz, iy, ix = theta.shape
-    
-
-    dthdp, dthdy, dthdx = gradient_sphere(theta, pres, lats, lons)
-    dudp, dudy, dudx = gradient_sphere(u, pres, lats, lons)
-    dvdp, dvdy, dvdx = gradient_sphere(v, pres, lats, lons)    
-
-    avort = np.zeros_like(theta).astype('f')   
-    for kk in range(0,iz):       
-        avort[kk,:,:] = vertical_vorticity_latlon(u[kk,:,:].squeeze(), v[kk,:,:].squeeze(), lats, lons, 1)
-
-    epv = (-9.81*(-dvdp*dthdx - dudp*dthdy + avort*dthdp))*10**6
-
-
-    return epv
 
 
 def tnflux2d(U, V, strm, lon, lat, xdim, ydim, cyclic=True, limit=100):
