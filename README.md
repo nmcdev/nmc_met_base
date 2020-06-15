@@ -7,7 +7,7 @@ Only Python 3 is supported.
 已包括scipy, numpy, matplotlib等大多数常用科学程序库.
 
 ## Dependencies
-Other required packages:
+请预先安装下列程序库:
 
 - [Numpy](https://numpy.org/), `conda install -c conda-forge numpy`
 - [Scipy](http://www.scipy.org/), `conda install -c conda-forge scipy`
