@@ -1108,6 +1108,8 @@ def grid_subset(lon, lat, bound):
     """
 
     # latitude lower and upper index
+    lat = np.asarray(lat)
+    lon = np.asarray(lon)
     latli = np.argmin(np.abs(lat - bound[2]))
     latui = np.argmin(np.abs(lat - bound[3]))
 
