@@ -273,16 +273,16 @@ def filter_numeric_nans(data,thresh, repl_val, high_or_low) :
     dimens = np.shape(data)    
     temp = np.reshape(data,np.prod(np.size(data)), 1)    
     if high_or_low=='high':        	
-	    inds = np.argwhere(temp > thresh) 	
-	    temp[inds] = repl_val	  
-    elif high_or_low=='low':    
-        inds = np.argwhere(temp < thresh) 
+        inds = np.argwhere(temp > thresh)
+        temp[inds] = repl_val	  
+    elif high_or_low=='low':
+        inds = np.argwhere(temp < thresh)
         temp[inds] = repl_val	  
     elif high_or_low =='both':
-       	inds = np.argwhere(temp > thresh) 	
+        inds = np.argwhere(temp > thresh)
         temp[inds] = repl_val
         del inds
-        inds = np.argwhere(temp < -thresh) 	
+        inds = np.argwhere(temp < -thresh)
         temp[inds] = -repl_val	                 
     else:
         inds = np.argwhere(temp > thresh) 
