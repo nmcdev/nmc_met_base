@@ -264,10 +264,10 @@ def filter_numeric_nans(data,thresh, repl_val, high_or_low) :
     Filter numerical nans above or below a specified value''
 
     Args:
-        data ([type]): array to filter '''
-        thresh ([type]):  threshold value to filter above or below '''
-        repl_val ([type]): replacement value'''
-        high_or_low ([type]): [description]
+        data (np.array): array to filter
+        thresh (float):  threshold value to filter above or below
+        repl_val (float): replacement value
+        high_or_low (string): 'high', 'low' or 'both'.
     """
     
     dimens = np.shape(data)    
@@ -313,7 +313,7 @@ def check_xarray(arr):
         Returns 0 if false, 1 if true.
     """
     try:
-        temp_val = arr.values
+        _ = arr.values
         return 1
     except:
         return 0
