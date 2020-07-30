@@ -16,12 +16,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name=name,
-
     version=version,
 
-    description=("A collections of basic functions "
-                 "for meteorological development."),
+    description=("A collections of basic functions for meteorological development."),
     long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://github.com/nmcdev/nmc_met_base',
 
     # author
     author=author,
@@ -31,18 +31,38 @@ setup(
     license='GPL3',
 
     classifiers=[
-      'Development Status :: 3 - Alpha',
+      'Development Status :: 4 - Beta',
       'Intended Audience :: Developers',
+      'Intended Audience :: Science/Research',
+      'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+      'Topic :: Scientific/Engineering',
+      'Topic :: Scientific/Engineering :: Atmospheric Science',
       'Programming Language :: Python :: 3',
-    ],
+      'Programming Language :: Python :: 3.6',
+      'Programming Language :: Python :: 3.7',
+      'Programming Language :: Python :: 3.8',
+      'Operating System :: POSIX :: Linux',
+      'Operating System :: MacOS :: MacOS X',
+      'Operating System :: Microsoft :: Windows'],
+    
+    python_requires='>=3.6',
+    zip_safe = False,
+    platforms = ["all"],
 
-    packages=find_packages(exclude=['docs', 'tests', 'build', 'dist']),
+    packages=find_packages(exclude=[
+      'documents', 'docs', 'tests', 'build', 'dist']),
     include_package_data=True,
     exclude_package_data={'': ['.gitignore']},
 
-    install_requires=['numpy', 'scipy', 'pyproj', 'python-dateutil', 'pandas',
-                      'xarray', 'numba', 'metpy'],
-    zip_safe = False
+    install_requires=[
+      'numpy>=1.17.0',
+      'scipy>=1.4.0',
+      'pandas>=1.0.0',
+      'xarray>=0.16.0',
+      'pyproj>=2.6.0',
+      'python-dateutil>=2.8.1',
+      'numba>=0.49.0',
+      'metpy>=0.12.0']
 )
 
 # development mode (DOS command):
@@ -53,5 +73,5 @@ setup(
 #     python setup.py build --build-base=D:/test/python/build
 
 # distribution mode:
-#     python setup.py sdist             # create source tar.gz file in /dist
-#     python setup.py bdist_wheel       # create wheel binary in /dist
+#     python setup.py sdist build              # create source tar.gz file in /dist
+#     twine upload --skip-existing dist/*      # upload package to pypi

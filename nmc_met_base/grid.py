@@ -19,7 +19,6 @@ from pyproj import Geod
 from metpy.units import units
 import metpy.calc as calc
 from metpy.xarray import preprocess_xarray
-import pyinterp.backends.xarray as pbx
 from nmc_met_base import constants, arr
 
 
@@ -1208,6 +1207,12 @@ def interp_3D_to_surface(data, lon, lat, lev, surf_lev):
     Returns:
         numpy array: data values on the surface, if outside, np.nan return.
     """
+
+    try:
+        import pyinterp.backends.xarray as pbx
+    except ImportError:
+        print('Please install pyinterp package.')
+        return None
 
     # create xarray data
     # refer to https://pangeo-pyinterp.readthedocs.io/en/latest/generated/pyinterp.backends.xarray.Grid3D.html#pyinterp.backends.xarray.Grid3D

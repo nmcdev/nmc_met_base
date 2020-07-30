@@ -9,7 +9,6 @@ Statistic functions.
 
 import numpy as np
 
-
 def vcorrcoef(X, y, dim):
     """
     Compute vectorized correlation coefficient.
