@@ -18,7 +18,6 @@ from scipy import interpolate, ndimage
 from pyproj import Geod
 from metpy.units import units
 import metpy.calc as calc
-from metpy.xarray import preprocess_xarray
 from nmc_met_base import constants, arr
 
 
@@ -912,26 +911,6 @@ def grid_smooth_area_average(in_field, lon, lat, radius=400.e3):
     return out_field.reshape(old_shape)
 
 
-@preprocess_xarray
-def _calcavg(x,xavg,lon2d,lat2d,nlon,nlat,rad,box,eqrm):
-    
-    nbox = (2*box+1)*(2*box+1)
-    
-    #Iterate over latitude and longitude
-    for j in range((box),(nlon-box)):
-        for i in range((box),(nlat-box)):
-
-            lon1d = lon2d[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
-            lat1d = lat2d[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
-            x1d = x[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
-
-            d1d = eqrm * np.sqrt(( (lon2d[i,j]-lon1d)*np.cos( (lat2d[i,j]+lat1d)/2.0 ) )**2.0 + (lat2d[i,j]-lat1d)**2.0)
-            z = x1d[d1d < rad] / len(x1d[d1d < rad])
-            xavg[i,j] = np.sum(z)
-   
-    return xavg
-
-
 def grid_area_average_degree(prod,deg,lats,lons):
     """
     Area averaging a lat/lon grid by a specified radius in degrees (not kilometers)
@@ -968,7 +947,25 @@ def grid_area_average_degree(prod,deg,lats,lons):
     return prod
 
 
-@preprocess_xarray
+def _calcavg(x,xavg,lon2d,lat2d,nlon,nlat,rad,box,eqrm):
+    
+    nbox = (2*box+1)*(2*box+1)
+    
+    #Iterate over latitude and longitude
+    for j in range((box),(nlon-box)):
+        for i in range((box),(nlat-box)):
+
+            lon1d = lon2d[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
+            lat1d = lat2d[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
+            x1d = x[i-box:i+box+1,j-box:j+box+1].reshape((nbox))
+
+            d1d = eqrm * np.sqrt(( (lon2d[i,j]-lon1d)*np.cos( (lat2d[i,j]+lat1d)/2.0 ) )**2.0 + (lat2d[i,j]-lat1d)**2.0)
+            z = x1d[d1d < rad] / len(x1d[d1d < rad])
+            xavg[i,j] = np.sum(z)
+   
+    return xavg
+
+
 def grid_area_average(var,rad,lon,lat):
     """Performs horizontal area-averaging of a field in latitude/longitude format.
     refer to
@@ -1021,11 +1018,11 @@ def grid_area_average(var,rad,lon,lat):
     rad = rad.to('kilometers')
     
     #res = distance in km of dataset resolution, at the equator
-    londiff = lon[1]-lon[0]
+    _ = lon[1]-lon[0]
     latdiff = lat[1]-lat[0]
     lat_0 = 0.0 - (latdiff/2.0)
     lat_1 = 0.0 + (latdiff/2.0)
-    dx,dy = calc.lat_lon_grid_deltas(np.array([lon[0],lon[1]]), np.array([lat_0,lat_1]))
+    dx,_ = calc.lat_lon_grid_deltas(np.array([lon[0],lon[1]]), np.array([lat_0,lat_1]))
     dx = dx.to('km')
     res = int((dx[0].magnitude + dx[1].magnitude)/2.0) * units('km')
     
@@ -1181,7 +1178,7 @@ def interp_3D_to_surface(data, lon, lat, lev, surf_lev):
     """
     Inpterpolate 3D grid to 2D surface, using pyinterp.
     本程序先将data数据转化为xarray, 再调用pyinterp的xarray接口.
-    如果直接调用pyinterp, 一定要注意坐标轴的顺序
+    如果直接调用pyinterp, 一定要注意坐标轴的顺序(即x, y, z)
     https://pangeo-pyinterp.readthedocs.io/en/latest/examples.html#id2
     # The shape of the bivariate values must be (len(x_axis), len(y_axis), len(z_axis))
 
