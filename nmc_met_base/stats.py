@@ -45,7 +45,7 @@ def edf(data, alpha=0.05, x0=None, x1=None, n=100):
     x1 = data.max() if x1 is None else x1
 
     # set estimating points
-    x = np.linspace(x0, x1, n)
+    x = np.linspace(x0, x1, n)  # estimating points
 
     # prepare estimating parameters
     N = data.size

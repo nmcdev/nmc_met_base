@@ -56,3 +56,4 @@ def cal_ivt(q, u, v, lon, lat, lev, surf_pres=None):
         iqv += np.abs(pCoord[ilevel,...]-pCoord[ilevel+1,...])*(qv[ilevel,...]+qv[ilevel+1,...])*0.5*0.1/9.8
 
     return iqu, iqv
+
