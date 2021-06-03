@@ -55,6 +55,39 @@ def prob_matched_ens_mean(values):
     return ens_pm_mean
 
 
+def optimal_quantiles_cal(values, thresholds, optimal_quant):
+    """
+    Calculate optimal quantiles for ensemble forecasts.
+
+    Args:
+        values (np.array): ensemble forecasts, shape=(ensemble_members, lat, lon)
+        thresholds (np.array): 1D array, precipiation thresholds, increase order, like [0.0, 10, 25, 50, 100]
+        optimal_quant (np.array): 1D array, optimal quantiles which corresponding to each threshold.
+
+    Returns:
+        np.array: probability-matched ensemble mean array, shape=(lat, lon)
+    """
+
+    # get dimensions
+    _, nlat, nlon = values.shape
+
+    # reverse order
+    thresholds = list(reversed(thresholds))
+    optimal_quant = list(reversed(optimal_quant))
+    values_cal = np.full((nlat, nlon), np.nan)
+
+    # loop each threshold
+    for ithreshold, threshold in enumerate(thresholds):
+        tmp = np.nanquantile(values, optimal_quant[ithreshold], axis=0)
+        tmp_mask = np.logical_and(tmp >= threshold, np.isnan(values_cal))
+        if np.count_nonzero(tmp_mask) > 0:
+            values_cal[tmp_mask] = tmp[tmp_mask]
+
+    # set nan to zero
+    values_cal[np.isnan(values_cal)] = 0.0
+    
+    return values_cal
+
 @nb.njit()
 def schaake_shuffle(fcst, traj):
     """
@@ -142,60 +175,6 @@ def schaake_shuffle_var(fcst, traj):
             
             output[:, l, n] = np.sort(temp_fcst)[reverse_b_func]
     return output
-
-
-@nb.njit()
-def quantile_mapping_stencil(pred, cdf_pred, cdf_true, land_mask, rad=1):
-    """
-    Quantile mapping with stencil grid points.
-
-    Scheuerer, M. and Hamill, T.M., 2015. Statistical postprocessing of 
-    ensemble precipitation forecasts by fitting censored, shifted gamma distributions. 
-    Monthly Weather Review, 143(11), pp.4578-4596.
-    
-    Hamill, T.M., Engle, E., Myrick, D., Peroutka, M., Finan, C. and Scheuerer, M., 2017. 
-    The US National Blend of Models for statistical postprocessing of probability of precipitation 
-    and deterministic precipitation amount. Monthly Weather Review, 145(9), pp.3441-3463.
-
-    refer to:
-    https://github.com/yingkaisha/fcstpp/blob/main/fcstpp/gridpp.py
-
-    Args:
-        pred (np.array): ensemble forecasts. `shape=(ensemb_members, gridx, gridy)`.
-        cdf_pred (np.array): quantile values of the forecast. `shape=(quantile_bins, gridx, gridy)`
-        cdf_true (np.array): the same as `cdf_pred` for the analyzed condition.
-        land_mask (np.array): boolean arrays with True for focused grid points (i.e., True for land grid point).
-                              `shape=(gridx, gridy)`.
-        rad (int, optional): grid point radius of the stencil. `rad=1` means 3-by-3 stencils.
-
-    Return:
-        out: quantile mapped and enlarged forecast. `shape=(ensemble_members, folds, gridx, gridy)`
-             e.g., 3-by-3 stencil yields nine-fold more mapped outputs.
-    """
-
-    EN, Nx, Ny = pred.shape
-    N_fold = (2*rad+1)**2
-    out = np.empty((EN, N_fold, Nx, Ny,))
-    out[...] = np.nan
-    
-    for i in range(Nx):
-        for j in range(Ny):
-            # loop over grid points
-            if land_mask[i, j]:
-                min_x = np.max([i-rad, 0])
-                max_x = np.min([i+rad, Nx-1])
-                min_y = np.max([j-rad, 0])
-                max_y = np.min([j+rad, Ny-1])
-
-                count = 0
-                for ix in range(min_x, max_x+1):
-                    for iy in range(min_y, max_y+1):
-                        if land_mask[ix, iy]:
-                            for en in range(EN):
-                                out[en, count, i, j] = np.interp(
-                                    pred[en, i, j], cdf_pred[:, ix, iy], cdf_true[:, ix, iy])
-                            count += 1
-    return out
 
 
 @nb.njit()
