@@ -5,7 +5,8 @@
 
 import numpy as np
 import numba as nb
-
+from numpy.random import gumbel
+from scipy.stats import gumbel_r
 
 def prob_matched_ens_mean(values):
     """
@@ -216,3 +217,105 @@ def bootstrap_fill(data, expand_dim, land_mask, fillval=np.nan):
                         ind_bagging = np.random.choice(L, size=expand_dim, replace=True)
                         out[day, :, ix, iy] = temp_[ind_bagging]
     return out
+
+
+def rank_histogram_cal(X, R, Thresh=None, gumbel_params=None):
+    """Calculation of "Corrected" Forecast Probability Distribution Using Rank Histogram.
+
+    refer to:
+    Hamill, T. M. and S. J. Colucci (1998). "Evaluation of Eta–RSM Ensemble Probabilistic 
+        Precipitation Forecasts." monthly weather review 126(3): 711-724.
+
+    The compute scheme as following:  
+                R0,  R1,  R2,  R3,  R4,...,Rn,  R{n+1}
+                   X0,  X1,  X2,  X3,  ,...,  Xn
+    if  [0, Ta)                                                 , (Ta/X0)*R0
+    if  [0,                Ta)                                  , R0+R1+(Ta-X1)/(X2-X1)*R2
+    if  [0,                                               Ta)   , R0+R1+...+R{n-1} + (F(Ta)-F(Xn))/(1-F(Xn))*R{n+1}
+    if  [Ta, Tb)                                                , ((Tb-Ta)/X0)*R0
+    if                                                  [Ta, Tb), (F(Tb)-F(Ta))/(1-F(Xn))*R{n+1}
+    if               [Ta,                                 Tb)   , (X1-Ta)/(X1-X0)*R1+R2+...+R{n-1} + (F(Tb)-F(Xn))/(1-F(Xn))*R{n+1}
+    if               [Ta,       Tb)                             , (X1-Ta)/(X1-X0)*R1+R2+(Tb-X2)/(X3-X2)*R3
+    if      [Ta,                                          inf)  , ((X0-Ta)/X0)*R0+R1+...+R{n+1}
+    if                         [Ta,                       inf)  , ((X3-Ta)/(X3-X2))*R3+R4+...+R{n+1}
+    if                                                  [Ta,inf), (1-F(Ta))/(1-F(Xn))*R{n+1}
+
+    Args:
+        X (np.array): 1d array, ensemble forecast, N member
+        R (np.array): 1d array, corresponding rank histogram, N+1 values.
+        Thresh (np.array): 1d array, precipiation category thresholds.
+                           [T1, T2, ..., Tn], T1 should larger than 0.
+        gumbel_params (list): Gumbel parameters using the method of moments (Wilks 1995)
+                              [location, scale]. We assume that the probability beyond 
+                              the highest ensemble member has the shape of Gumbel distribution.
+
+    Return:
+        np.array, the probability for each categories, 
+            [P(0 <= V < T1), P(T1 <= V < T2), ..., P(Tn <= V)].
+
+    Examples:
+        X = [0, 0, 0, 0, 0, 0, 0.02, 0.04, 0.05, 0.07, 0.10, 0.11, 0.23, 0.26, 0.35]
+        R = [0.25, 0.13, 0.09, 0.07, 0.05, 0.05, 0.04, 0.04,0.03, 0.03, 0.03, 0.02, 0.02, 0.03, 0.05, 0.07]
+        Thresh = [0.01, 0.1, 0.25, 0.5, 1.0, 2.0]
+        print(rank_histogram_cal(X, R, Thresh=Thresh))
+        # the answer should be [0.66, 0.15, 0.06, 0.11, 0.01, 0.0, 0.0]
+    """
+
+    # sort ensemble forecast
+    X = np.sort(X)
+    nX = X.size
+
+    # set precipiation category thresholds.
+    if Thresh is None:
+        Thresh = [0.1, 10, 25, 50, 100, 250]
+    Thresh = np.sort(Thresh)
+
+    # set gumbel params
+    # default parameters from Hamill(1998) paper.
+    if gumbel_params is None:
+        gumbel_params = [0.03, 0.0898]
+    gumbel = lambda x: gumbel_r.cdf(x, loc=gumbel_params[0], scale=gumbel_params[1])
+
+    # the probabilities each categories
+    nt = Thresh.size
+    P = np.zeros(nt + 1)
+    
+    # calculate P(0 <= V < T1)
+    ind = np.searchsorted(X, Thresh[0])
+    if ind == 0:
+        P[0] = (Thresh[0]/X[0])*R[0]
+    elif ind == nX:
+        P[0] = np.sum(R[0:nX]) + (gumbel(Thresh[0])-gumbel(X[nX-1]))/(1.0-gumbel(X[nX-1]))*R[nX]
+    else:
+        P[0] = np.sum(R[0:ind]) + (Thresh[0]-X[ind-1])/(X[ind]-X[ind-1])*R[ind]
+
+    # calculate  P(T1 <= V < T2), ..., P(Tn-1 <= V < Tn)
+    for it, _ in enumerate(Thresh[0:-1]):
+        # get threshold range
+        Ta = Thresh[it]
+        Tb = Thresh[it+1]
+
+        if Tb < X[0]:
+            P[it+1] = ((Tb-Ta)/X[0])*R[0]
+        elif Ta >= X[-1]:
+            P[it+1] = (gumbel(Tb)-gumbel(Ta))/(1.0-gumbel(X[-1]))*R[nX]
+        else:
+            inda = np.searchsorted(X, Ta)
+            indb = np.searchsorted(X, Tb)
+            if indb == nX:
+                P[it+1] = (X[inda] - Ta)/(X[inda]-X[inda-1])*R[inda] + \
+                           np.sum(R[(inda+1):(indb)]) + (gumbel(Tb)-gumbel(X[-1]))/(1.0-gumbel(X[-1]))*R[nX]
+            else:
+                P[it+1] = (X[inda] - Ta)/(X[inda]-X[inda-1])*R[inda] + \
+                           np.sum(R[(inda+1):(indb)]) + (Tb-X[indb-1])/(X[indb]-X[indb-1])*R[indb]
+
+    # calculate P(Tn <= V)
+    ind = np.searchsorted(X, Thresh[-1])
+    if ind == 0:
+        P[nt] = ((X[0]-Thresh[-1])/X[0])*R[0] + np.sum(R[1:])
+    elif ind == nX:
+        P[nt] = (1.0-gumbel(Thresh[-1]))/(1.0-gumbel(X[-1]))*R[nX]
+    else:
+        P[nt] = (X[ind]-Thresh[-1])/(X[ind]-X[ind-1])*R[ind] + np.sum(R[(ind+1):])
+    
+    return P
