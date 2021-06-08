@@ -5,8 +5,8 @@
 
 import numpy as np
 import numba as nb
-from numpy.random import gumbel
 from scipy.stats import gumbel_r
+
 
 def prob_matched_ens_mean(values):
     """
@@ -56,6 +56,48 @@ def prob_matched_ens_mean(values):
     return ens_pm_mean
 
 
+def prob_matched_ens_mean_local(values, half_width=10):
+    """Calculate local probability-matched ensemble mean field.
+
+    Args:
+        values (np.array): ensemble forecasts, shape=(ensemble_members, lat, lon)
+        half_width (scaler, optional): the half width of local square.
+    
+    Returns:
+        np.array: local probability-matched ensemble mean array, shape=(lat, lon)
+    """
+
+    # get dimensions
+    _, nlat, nlon = values.shape
+
+    # construct result variables
+    ens_pm_mean = np.zeros((nlat, nlon))
+
+    # loop every grid point
+    for j in range(nlat):
+        for i in range(nlon):
+            # subset the local square
+            i0 = max(0, i - half_width)
+            i1 = min(nlon, i + half_width + 1)
+            j0 = max(0, j - half_width)
+            j1 = min(nlat, j + half_width + 1)
+            sub_values = values[:, j0:j1, i0:i1].copy()
+
+            # perform probability matching
+            nmem, ny, nx = sub_values.shape
+            sub_ens_pm_mean = np.zeros(ny * nx)
+            sub_ens_mean = sub_values.mean(axis=0).flatten()
+            sub_values = sub_values.flatten()
+            sub_ens_pm_mean[np.argsort(sub_ens_mean)] = \
+                sub_values[(np.argsort(sub_values))[round(nmem/2.0-1)::nmem]]
+            sub_ens_pm_mean.shape = (nx, ny)
+            ens_pm_mean[j,i] = sub_ens_pm_mean[min(j,half_width), min(i,half_width)]
+
+    # return PM ensemble mean
+    return ens_pm_mean
+
+
+
 def optimal_quantiles_cal(values, thresholds, optimal_quant):
     """
     Calculate optimal quantiles for ensemble forecasts.
@@ -88,6 +130,7 @@ def optimal_quantiles_cal(values, thresholds, optimal_quant):
     values_cal[np.isnan(values_cal)] = 0.0
     
     return values_cal
+
 
 @nb.njit()
 def schaake_shuffle(fcst, traj):
