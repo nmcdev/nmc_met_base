@@ -4,7 +4,6 @@
 # Distributed under the terms of the GPL V3 License.
 
 import numpy as np
-from scipy.interpolate import barycentric_interpolate
 import numba as nb
 
 
