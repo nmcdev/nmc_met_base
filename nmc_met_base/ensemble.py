@@ -73,6 +73,9 @@ def prob_matched_ens_mean_local(values, half_width=10):
     # construct result variables
     ens_pm_mean = np.zeros((nlat, nlon))
 
+    # compuate ensemble means
+    ens_mean = values.mean(axis=0)
+
     # loop every grid point
     for j in range(nlat):
         for i in range(nlon):
@@ -81,21 +84,20 @@ def prob_matched_ens_mean_local(values, half_width=10):
             i1 = min(nlon, i + half_width + 1)
             j0 = max(0, j - half_width)
             j1 = min(nlat, j + half_width + 1)
-            sub_values = values[:, j0:j1, i0:i1].copy()
+            sub_values = values[:, j0:j1, i0:i1]
 
             # perform probability matching
             nmem, ny, nx = sub_values.shape
             sub_ens_pm_mean = np.zeros(ny * nx)
-            sub_ens_mean = sub_values.mean(axis=0).flatten()
-            sub_values = sub_values.flatten()
+            sub_ens_mean = np.ravel(ens_mean[j0:j1, i0:i1])
+            sub_values = np.ravel(sub_values)
             sub_ens_pm_mean[np.argsort(sub_ens_mean)] = \
                 sub_values[(np.argsort(sub_values))[round(nmem/2.0-1)::nmem]]
-            sub_ens_pm_mean.shape = (nx, ny)
-            ens_pm_mean[j,i] = sub_ens_pm_mean[min(j,half_width), min(i,half_width)]
+            index = int(min(j,half_width)) * nx + int(min(i,half_width))
+            ens_pm_mean[j,i] = sub_ens_pm_mean[index]
 
     # return PM ensemble mean
     return ens_pm_mean
-
 
 
 def optimal_quantiles_cal(values, thresholds, optimal_quant):
