@@ -287,7 +287,8 @@ def rank_histogram_cal(X, R, Thresh=None, gumbel_params=None):
 
     Args:
         X (np.array): 1d array, ensemble forecast, N member
-        R (np.array): 1d array, corresponding rank histogram, N+1 values.
+        R (np.array): 1d array, corresponding rank histogram, N+1 values, 
+                      compuate form history forecasts and observations.
         Thresh (np.array): 1d array, precipiation category thresholds.
                            [T1, T2, ..., Tn], T1 should larger than 0.
         gumbel_params (list): Gumbel parameters using the method of moments (Wilks 1995)
