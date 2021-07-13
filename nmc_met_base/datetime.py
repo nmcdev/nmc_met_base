@@ -7,6 +7,7 @@
   Date and time manipulate functions.
 """
 
+import calendar
 import datetime as dt
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -41,6 +42,50 @@ def datetime_range(start, end, delta):
         current += delta
     return result
 
+
+def get_same_date_range(date_center, 
+                        years=[1991+i for i in range(30)],
+                        period=15, freq="1D"):
+    """
+    Generate date series for the same period of each year.
+
+    Args:
+        date_center (list): the central date, [month, day]
+        years (list): year list, defaults to  [1991+i for i in range(30)].
+        period (int, optional): date range length. Defaults to 15.
+        freq (str, optional): date frequency. Defaults to "1D".
+
+    Returns:
+        the same period date series, [date_center-int(period/2), date_center+int(period/2)]
+    """
+
+    times = pd.to_datetime([])
+
+    for year in years:
+        start = dt.datetime(year, date_center[0], date_center[1]) - dt.timedelta(days=int(period/2))
+        times = times.append(pd.date_range(start=start, periods=period, freq="1D"))
+
+    return times
+
+
+def get_same_date(mon_day, years=[1991+i for i in range(30)]):
+    """
+    Generate the same date for each year. If mon_day = [2,29]
+    in not leap year, just set empty item.
+
+    Args:
+        mon_day (list): the [month, day] list
+        years (list, optional): year list, defaults to  [1991+i for i in range(30)].
+    """
+
+    dates = []
+    for year in years:
+        if mon_day == [2, 29]:
+            if not calendar.isleap(year):
+                continue
+        dates.append(dt.datetime(year, mon_day[0], mon_day[1]))
+
+    return dates
 
 def d2s(d, fmt='%HZ%d%b%Y'):
     """
