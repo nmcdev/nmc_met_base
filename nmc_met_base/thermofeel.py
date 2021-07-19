@@ -9,6 +9,7 @@
 """
   thermofeel is a library to calculate human thermal comfort indexes.
   https://github.com/ecmwf-projects/thermofeel
+  https://github.com/CenterForTheBuiltEnvironment/pythermalcomfort
 
     Currently calculates the thermal indexes:
     * Universal Thermal Climate Index
