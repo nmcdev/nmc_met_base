@@ -632,7 +632,7 @@ def total_col(infld, pres, temp, hght):
     :return:  Output total column integrated value
     """
 
-    [iz, iy, ix] = np.shape(infld)
+    [_, iy, ix] = np.shape(infld)
     density = pres / (287 * temp)
     tmp = pres[0, :, :].squeeze()
 

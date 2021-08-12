@@ -365,3 +365,37 @@ def rank_histogram_cal(X, R, Thresh=None, gumbel_params=None):
         P[nt] = (X[ind]-Thresh[-1])/(X[ind]-X[ind-1])*R[ind] + np.sum(R[(ind+1):])
     
     return P
+
+
+def prob(data, thresholds, axis=0, reverse=False):
+    """
+    Calculate probability forecast from ensemble forecast.
+
+    Args:
+        data (np.array): numpy array.
+        thresholds (list): thresholds for probabilities.
+        axis (int, optional): [description]. Defaults to 0.
+        reverse (bool, optional): [description]. Defaults to False.
+    """
+    
+    # get the ensemble number
+    dims = list(data.shape)
+    nmem = dims[axis]
+    dims.pop(axis)
+    
+    # create probability array
+    thresholds = np.asarray(thresholds)
+    prob_data = np.full((thresholds.size, *dims), 0.0)
+    
+    # loop every threshold for computing probabilities
+    for it, threshold in enumerate(thresholds):
+        if not reverse:
+            temp = np.where(data >= threshold, 1, 0)
+        else:
+            temp = np.where(data <= threshold, 1, 0)
+        prob_data[it,...] = temp.sum(axis=axis) / nmem
+    
+    # return
+    return prob_data
+    
+    
