@@ -385,15 +385,18 @@ def prob(data, thresholds, axis=0, reverse=False):
     
     # create probability array
     thresholds = np.asarray(thresholds)
-    prob_data = np.full((thresholds.size, *dims), 0.0)
+    prob_data = np.full((thresholds.size, *dims), np.nan)
     
     # loop every threshold for computing probabilities
+    idx = np.where(~np.isnan(data))
     for it, threshold in enumerate(thresholds):
         if not reverse:
-            temp = np.where(data >= threshold, 1, 0)
+            temp = np.where(data[idx] >= threshold, 1, 0)
         else:
-            temp = np.where(data <= threshold, 1, 0)
-        prob_data[it,...] = temp.sum(axis=axis) / nmem
+            temp = np.where(data[idx] <= threshold, 1, 0)
+        temp2 = np.full(data.shape, np.nan)
+        temp2[idx] = temp
+        prob_data[it,...] = temp2.sum(axis=axis) * 100.0 / nmem
     
     # return
     return prob_data
