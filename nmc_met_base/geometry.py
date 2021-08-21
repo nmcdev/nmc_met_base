@@ -82,8 +82,8 @@ def separate_points_by_polygon(points, polygon, closed=True):
     if len(points.shape) != 2:
         raise Exception('Points array must have two columns.')
 
-    N = polygon.shape[0]  # Number of vertices in polygon
-    M = points.shape[0]  # Number of points
+    _ = polygon.shape[0]  # Number of vertices in polygon
+    _ = points.shape[0]  # Number of points
 
     # indices = numpy.zeros(M, numpy.int)
     indices, count = _separate_points_by_polygon(
@@ -376,8 +376,8 @@ def clip_lines_by_polygon(lines, polygon, closed=True):
                                     outside polygon
     """
 
-    N = polygon.shape[0]  # Number of vertices in polygon
-    M = len(lines)  # Number of lines
+    _ = polygon.shape[0]  # Number of vertices in polygon
+    _ = len(lines)  # Number of lines
 
     inside_line_segments = []
     outside_line_segments = []
