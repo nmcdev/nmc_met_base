@@ -1436,7 +1436,7 @@ def interpolate2d(x, y, Z, points, mode='linear', bounds_error=False):
     # Identify elements that are outside interpolation domain or NaN
     outside = (xi < x[0]) + (eta < y[0]) + (xi > x[-1]) + (eta > y[-1])
     outside += np.isnan(xi) + np.isnan(eta)
-    inside = -outside
+    inside = ~outside
     xi = xi[inside]
     eta = eta[inside]
 
@@ -1479,9 +1479,9 @@ def interpolate2d(x, y, Z, points, mode='linear', bounds_error=False):
         # Piecewise constant (as verified in input_check)
         # Set up masks for the quadrants
         left = alpha < 0.5
-        right = -left
+        right = ~left
         lower = beta < 0.5
-        upper = -lower
+        upper = ~lower
 
         lower_left = lower * left
         lower_right = lower * right
