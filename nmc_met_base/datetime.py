@@ -43,7 +43,7 @@ def datetime_range(start, end, delta):
     return result
 
 
-def get_same_date_range(date_center, 
+def get_same_date_range(date_center,
                         years=[1991+i for i in range(30)],
                         period=15, freq="1D"):
     """
@@ -63,7 +63,7 @@ def get_same_date_range(date_center,
 
     for year in years:
         start = dt.datetime(year, date_center[0], date_center[1]) - dt.timedelta(days=int(period/2))
-        times = times.append(pd.date_range(start=start, periods=period, freq="1D"))
+        times = times.append(pd.date_range(start=start, periods=period, freq=freq))
 
     return times
 
@@ -86,6 +86,30 @@ def get_same_date(mon_day, years=[1991+i for i in range(30)]):
         dates.append(dt.datetime(year, mon_day[0], mon_day[1]))
 
     return dates
+
+
+def extract_same_date(data, middle_date=None, period=7, var_time="Datetime"):
+    """
+    该程序用于从多年的时间序列数据中获得历史同期的数据.
+
+    Args:
+        data (pandas dataframe): pandas数据表格, 其中一列为时间序列的时间戳.
+        middle_date (date object, optional): 中间时间日期. Defaults to None.
+        period (int, optional): 时间窗口半径. Defaults to 7, 表示在middle_date前后7天之内.
+    """
+    
+    if middle_date is None:
+        middle_date = dt.date.today()
+    
+    same_dates = pd.date_range(start=middle_date-pd.Timedelta(period, unit='day'),
+                               periods=period*2+1)
+    same_dates = list(same_dates.strftime('%m-%d'))
+    data['Date'] = data[var_time].dt.strftime("%m-%d")
+    data = data.loc[data['Date'].isin(same_dates), :]
+    data.drop('Date', axis=1, inplace=True)
+    
+    return data 
+
 
 def d2s(d, fmt='%HZ%d%b%Y'):
     """
@@ -145,3 +169,4 @@ def np64toDate(np64):
     :return:
     """
     return pd.to_datetime(str(np64)).replace(tzinfo=None).to_pydatetime()
+
