@@ -103,7 +103,7 @@ def extract_same_date(data, middle_date=None, period=7, var_time="Datetime"):
     
     same_dates = pd.date_range(start=middle_date-pd.Timedelta(period, unit='day'),
                                periods=period*2+1)
-    same_dates = list(same_dates.strftime('%m-%d'))
+    same_dates = same_dates.strftime('%m-%d').to_list()
     data['Date'] = data[var_time].dt.strftime("%m-%d")
     data = data.loc[data['Date'].isin(same_dates), :]
     data.drop('Date', axis=1, inplace=True)
