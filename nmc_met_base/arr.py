@@ -9,7 +9,7 @@
 
 import numpy as np
 import xarray as xr
-from typing import Union, Callable
+from typing import Union
 
 
 def conform_dims(dims, r, ndim):

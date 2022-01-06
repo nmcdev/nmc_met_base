@@ -62,7 +62,6 @@ setup(
       'pyproj>=2.6.0',
       'python-dateutil>=2.8.1',
       'numba>=0.49.0',
-      'cartopy>=0.20.0',
       'metpy>=0.12.0']
 )
 
