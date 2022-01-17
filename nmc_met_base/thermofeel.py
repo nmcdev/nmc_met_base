@@ -10,6 +10,7 @@
   thermofeel is a library to calculate human thermal comfort indexes.
   https://github.com/ecmwf-projects/thermofeel
   https://github.com/CenterForTheBuiltEnvironment/pythermalcomfort
+  https://www.ecmwf.int/sites/default/files/elibrary/2015/18490-radiation-quantities-ecmwf-model-and-mars.pdf
 
     Currently calculates the thermal indexes:
     * Universal Thermal Climate Index
@@ -291,11 +292,11 @@ def calculate_cos_solar_zenith_angle_integrated(
 def calculate_mean_radiant_temperature(ssrd, ssr, fdir, strd, strr, cossza):
     """
     mrt - Mean Radiant Temperature
-    :param ssrd: is surface solar radiation downwards [J/m^-2]
-    :param ssr: is surface net solar radiation [J/m^-2]
-    :param fdir: is Total sky direct solar radiation at surface [J/m^-2]
-    :param strd: is Surface thermal radiation downwards [J/m^-2]
-    :param strr: is Surface net thermal radiation [J/m^-2]
+    :param ssrd: is surface solar radiation downwards [J/m^-2]  地面向下太阳辐射
+    :param ssr: is surface net solar radiation [J/m^-2]  地面净太阳辐射
+    :param fdir: is Total sky direct solar radiation at surface [J/m^-2] 晴空太阳直接辐射
+    :param strd: is Surface thermal radiation downwards [J/m^-2]  地面向下热辐射
+    :param strr: is Surface net thermal radiation [J/m^-2]  地面净热辐射
     :param cossza: is cosine of solar zenith angle [degrees]
 
     returns Mean Radiant Temperature [K]
