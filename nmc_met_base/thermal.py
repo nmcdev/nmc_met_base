@@ -193,54 +193,6 @@ def virtual_temp_from_mixr(tempk, mixr):
     return tempk * (1.0 + 0.6 * mixr)
 
 
-def wetbulb(temp,dwpt,pres):
-    """
-    Calculate wetbulb temperature, returns in Kelvin
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-
-    Args:
-        temp ([type]): 2D array of temperature (K)
-        dwpt ([type]): 2D array of Dewpoints (K)
-        pres ([type]): integer specifying pressure level (hPa)
-    """
-    #Calculate mixing ratios
-    ws = mixratio(temp,pres)
-    w = mixratio(dwpt,pres)
-
-    #Formula used: Tw = T - (Lv/cp)(ws-w)\
-    part1 = np.divide(Lv,Cp)
-    part2 = np.subtract(ws,w)
-    part3 = np.multiply(part1,part2)
-    wb = np.subtract(temp,part3)
-    
-    return wb
-
-
-def wetbulb_q(temp,q,pres):
-    """
-    Calculate wetbulb temperature, returns in Kelvin
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp ([type]): 2D array of temperature (K)
-        q ([type]): 2D array of specific humidity (K)
-        pres ([type]): integer specifying pressure level (hPa)
-    """
-    
-    #Calculate mixing ratios
-    ws = mixratio(temp,pres)
-    w = np.divide(q,np.add(q,1))
-    w = np.divide(w,100.0)
-
-    #Formula used: Tw = T - (Lv/cp)(ws-w) 
-    part1 = np.divide(Lv,Cp)
-    part2 = np.subtract(ws,w)
-    part3 = np.multiply(part1,part2)
-    wb = np.subtract(temp,part3)
-    
-    return wb
-
-
 def latentc(tempk):
     """
     Latent heat of condensation (vapourisation)
