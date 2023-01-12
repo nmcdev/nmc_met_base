@@ -11,9 +11,6 @@
 """
 
 import numpy as np
-import xarray as xr
-import scipy.ndimage as ndimage
-from scipy.ndimage.filters import generic_filter as gf
 from nmc_met_base import arr, constants, grid
 
 
@@ -33,28 +30,6 @@ eo = constants.eo
 epsil = constants.epsil
 rotation_rate = constants.omega #rotation period of Earth (1/s)
 pi = np.pi #pi
-
-
-def vapor_pressure(temp): 
-    """
-    Returns vapor pressure in units of hPa
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp ([type]): 2D array of temp or dewpoints (K)
-    
-    Returns:
-        e = Vapor pressure = dewpoint
-        es = Saturated vapor pressure = temperature
-    """
-    #Calculate vapor pressure in hPa\
-    part1 = np.multiply(17.67,np.subtract(temp,273.15))
-    part2 = np.add(np.subtract(temp,273.15),243.5)
-    part3 = np.divide(part1,part2)
-    part4 = np.exp(part3)
-    e = np.multiply(6.112,part4)
-    
-    return e
 
 
 def claus_clap(temp):
@@ -114,29 +89,6 @@ def sat_vap(temp):
         if nice > 0:
             esat = 6.112 * np.exp(22.46 * tempc / (tempc + 272.62)) * 100.
     return esat
-
-
-def mixratio(temp,pres):
-    """
-    Calculate mixing ratio, returns in units of kg/kg
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp ([type]): 2D array of temperature or dewpoint (K)
-        pres ([type]): integer specifying pressure level (hPa)
-    
-    Returns:
-        ws = saturated mixing ratio = temperature (@erified)
-        w = mixing ratio = dewpoint
-    """
-    
-    #Calculate vapor pressure in hPa
-    e = vapor_pressure(temp)
-    
-    #w = 0.622 * (e / (pres))
-    w = np.multiply(0.622,np.divide(e,pres))
-    
-    return w
 
 
 def satur_mix_ratio(es, pres):
@@ -208,69 +160,6 @@ def latentc(tempk):
         0.00006 * tempc ** 3)
 
 
-def relh_temp(temp,dwpt):
-    """
-    Compute relative humidity given temperature and dewpoint
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp ([type]): 2D arrays or integer of temperature (K)
-        dwpt ([type]): 2D arrays or integer of dewpoint (K)
-    
-    Returns:
-        Returns in units of percent (100 = 100%)
-    """
-    
-    #Compute actual and saturated vapor pressures
-    e = vapor_pressure(dwpt)
-    es = vapor_pressure(temp)
-    
-    #Compute RH
-    rh = relh(e,es)
-    
-    return rh
-
-
-def relh(w,ws):
-    """
-    Compute relative humidity given mixing ratio or vapor pressure
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        w ([type]): actual mixing ratios (or vapor pressures)
-        ws ([type]): saturated mixing ratios (or vapor pressures)
-    
-    Returns:
-        Returns in units of percent (100 = 100%)
-    """
-    
-    #Compute RH
-    rh = np.multiply(np.divide(w,ws),100.0)
-    
-    return rh
-
-
-def theta(temp,pres):
-    """
-    Compute the potential temperature
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp (2D array): scalar temperature field (Kelvin)
-        pres (float): pressure level (hPa)
-    
-    Returns:
-        Returns in units of Kelvin
-    """
-
-    #Compute theta using Poisson's equation
-    refpres = np.divide(1000.0,pres)
-    refpres = np.power(refpres,kappa)
-    theta = np.multiply(temp,refpres)
-    
-    return theta
-
-
 def temp_to_theta(temp, pres, p0=100000.):
     """
     Compute potential temperature.
@@ -297,36 +186,6 @@ def theta_to_temp(theta, pres, p0=100000.):
     return theta * (pres / p0) ** 0.286
 
 
-def thetae(temp,dwpt,pres):
-    """
-    Compute the saturated potential temperature, following AMS methodology
-    See: http://glossary.ametsoc.org/wiki/Equivalent_potential_temperature
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        temp (2D array): scalar temperature field (Kelvin)
-        dwpt (2D array): scalar dew point temperature field (Kelvin)
-        pres (float): pressure level (hPa)
-    
-    Returns:
-        Returns in units of Kelvin
-    """
-    
-    #Calculate potential temp & saturated mixing ratio
-    thta = theta(temp,pres)
-    ws = mixratio(dwpt,pres)
-    rh = np.divide(relh_temp(temp,dwpt),100.0)
-    
-    #Calculate potential temperature
-    term1 = thta
-    term2 = np.power(rh,np.divide(-1*np.multiply(Rv,ws),Cp))
-    term3 = np.exp(np.divide(np.multiply(Lv,ws),np.multiply(Cp,temp)))
-    
-    thte = np.multiply(term1,np.multiply(term2,term3))
-    
-    return thte
-
-
 def thetae_qv(thta, temp, qv):
     """
     Compute equivalent potential temperature
@@ -340,23 +199,6 @@ def thetae_qv(thta, temp, qv):
     thout = thta * np.exp((Lv * qv) / (Cp * temp))
     return thout
 
-
-def dewpoint(temp,rh):
-    """
-    Calculates the dewpoint given RH and temperature
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Returns:
-        Returns dewpoint in Kelvin
-    """
-
-    #Source: http://andrew.rsmas.miami.edu/bmcnoldy/Humidity.html
-    part1 = 243.04 * (np.log(rh/100.0) + ((17.625 * (temp-273.15)) / (243.04 + (temp-273.15))))
-    part2 = 17.65 - np.log(rh/100.0) - ((17.625 * (temp-273.15)) / (243.04 + (temp-273.15)))
-    
-    Td = (part1 / part2) + 273.15
-    
-    return Td
 
 def spechum_to_td(spechum, pres):
     """
@@ -372,32 +214,6 @@ def spechum_to_td(spechum, pres):
     evap = qvap * pres * RvRd
     tdew = 1 / ((1 / Tfrez) - (Rv / Lv) * np.log(evap / eo))
     return tdew
-
-
-def specific_humidity(temp,pres,rh):
-    """
-    Calculate specific humidity
-    
-    Args:
-        temp ([type]): [description]
-        pres ([type]): [description]
-        rh ([type]): [description]
-    
-    Returns:
-        Returns q in kg/kg
-    """
-    
-    #saturated vapor pressure in Pa
-    es = vapor_pressure(temp) * 100.0
-    
-    #get e from RH (in decimals) in Pa
-    e = (rh / 100.0) * es
-    
-    #Approximate specific humidity q ~ w
-    w = 0.622 * (e / pres) #used to be 0.622
-    q = w
-    
-    return q
 
 
 def moist_lapse(ws, temp):
@@ -441,31 +257,6 @@ def gamma_w(tempk, pres, e=None):
     Rho = pres / (Rd * tempv)
     gamma = (A / B) / (Cp * Rho)
     return gamma
-
-
-def mslp(pres,hght,temp,lapse=6.5):
-    """
-    Approximate the MSLP from the Hypsometric equation
-    https://github.com/tomerburg/metlib/blob/master/diagnostics/met_functions.py
-    
-    Args:
-        pres ([type]): surface pressure (Pa)
-        hght ([type]): surface height (m)
-        temp ([type]): 2m temperature (K)
-        lapse (float, optional): (either constant or array in the same dimension as the other
-                                 variables. If none, assumed to be moist adiabatic lapse rate
-                                 6.5 K/km.). Defaults to 6.5.
-    """
-    
-    #Approximate the virtual temperature as the average temp in the layer
-    #using a 6.5 K/km lapse rate
-    tslp = (lapse/1000)*hght + temp
-    Tavg = 0.5*(tslp + temp)
-    
-    #Use the hypsometric equation to solve for lower pressure
-    mslp = pres * np.exp((hght * g) / (Rd * Tavg))
-    
-    return mslp
 
 
 def dry_parcel_ascent(startpp, starttk, starttdewk, nsteps=101):
