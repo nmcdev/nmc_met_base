@@ -356,6 +356,40 @@ def check_termination_conditions(mslp, vorticity_850, lat, lon,
 
     return False
 
+def calculate_thickness(temperature_850, temperature_200, pressure_850=850, pressure_200=200):
+    """
+    计算 850hPa 和 200hPa 之间的厚度场。
+
+    参数:
+    ----------
+    temperature_850 : float array
+        850hPa 气温 (单位: K)
+    temperature_200 : float array
+        200hPa 气温 (单位: K)
+    pressure_850 : float
+        850hPa 的气压 (单位: hPa), 默认为 850hPa
+    pressure_200 : float
+        200hPa 的气压 (单位: hPa), 默认为 200hPa
+
+    返回:
+    ----------
+    thickness : 2D float array
+        850hPa 和 200hPa 之间的厚度场 (单位: gpm)
+    """
+    # 常数
+    R = 287.0  # 气体常数 (J/kg·K)
+    g = 9.81   # 重力加速度 (m/s^2)
+
+    # 气温的差值
+    temp_diff = temperature_850 - temperature_200  # 温度差 (单位: K)
+
+    # 计算厚度 (单位: gpm, 1m = 0.01gpm)
+    # 厚度公式: 厚度 ≈ (T850 - T200) / P差 * P平均 * 常数
+    # 温度差除以气压差，乘以气压平均值，转化为单位gpm
+    thickness = (temp_diff / (pressure_850 - pressure_200)) * (pressure_850 + pressure_200) * 10
+
+    return thickness
+
 def track_tc(initial_lat, initial_lon,
              lat_grid, lon_grid,
              mslp_data, vorticity_data, thickness_data,
